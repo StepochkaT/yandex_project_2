@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+    {% if not authenticated %}
+        <h1>Добро пожаловать</h1>
+        <p>Зарегистрируйтесь или войдите в аккаунт</p>
+    {% else %}
+        <div style="display: flex; justify-content: space-between;">
+            <div><strong>{{ current_month }}</strong></div>
+        </div>
+
+        <h2>Ваши финансы</h2>
+        <p>Доходы: {{ income }} руб.</p>
+        <p>Расходы: {{ expense }} руб.</p>
+        <p>Баланс: {{ balance }} руб.</p>
+
+        <a href="/add_operation"><button>Добавить операцию</button></a>
+        <a href="/operations"><button>Операции</button></a>
+    {% endif %}
+{% endblock %}

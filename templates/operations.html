@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Операции за период</h2>
+<form method="POST" id="filterForm">
+    {{ form.csrf_token }}
+    {{ form.date_range(id="date_range", type="hidden", style="display:none;") }}
+
+    <button type="button" class="btn btn-outline-primary mb-2" id="openPicker">Выбрать диапазон</button>
+
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="show_all" name="show_all" {% if show_all %}checked{% endif %}>
+        <label class="form-check-label" for="show_all">Показывать все</label>
+    </div>
+
+    {{ form.operation_type(class="form-control mb-2") }}
+
+    <input type="text" name="search_query" class="form-control mb-2" placeholder="Поиск по описанию..." value="{{ search_query }}">
+
+    {{ form.submit(class="btn btn-success") }}
+</form>
+
+
+{% if operations %}
+    <table class="table table-striped mt-4">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Название</th>
+                <th>Сумма</th>
+                <th>Тип</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for op in operations %}
+                <tr>
+                    <td>{{ op.date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ op.description }}</td>
+                    <td>{{ op.amount }}</td>
+                    <td>{{ 'Доход' if op.type == 'income' else 'Расход' }}</td>
+                    <td>
+                        <a href="{{ url_for('edit_operation', id=op.id) }}" class="btn btn-warning btn-sm">Редактировать</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+        <nav>
+            <ul class="pagination">
+                {% for page_num in range(1, total_pages + 1) %}
+                    <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                        <a class="page-link" href="?page={{ page_num }}&operation_type={{ selected_type }}">{{ page_num }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </nav>
+    {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const fp = flatpickr("#date_range", {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            onChange: function () {
+                const checkbox = document.getElementById("show_all");
+                if (checkbox.checked) {
+                    checkbox.checked = false;
+                }
+            }
+        });
+
+        document.getElementById("openPicker").addEventListener("click", function () {
+            fp.open();
+        });
+
+        document.getElementById("show_all").addEventListener("change", function () {
+            document.getElementById("filterForm").submit();
+        });
+    });
+</script>
+{% endblock %}
