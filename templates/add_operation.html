@@ -1,18 +1,48 @@
 {% extends "base.html" %}
-
 {% block content %}
-    <form action="" method="post" novalidate>
-        <div>
-            {{ form.csrf_token }}
-        </div>
-        {% for field in form if field.name != 'csrf_token' %}
-            <div>
-                {{ field.label() }}
-                {{ field() }}
-                {% for error in field.errors %}
-                    <div class="error">{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endfor %}
-    </form>
+<form method="post">
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.date.label }} {{ form.date() }}
+    </div>
+    <div>
+        {{ form.amount.label }} {{ form.amount() }}
+    </div>
+    <div>
+        {{ form.type.label }} {{ form.type(id="type-select") }}
+    </div>
+    <div>
+        {{ form.category.label }} {{ form.category(id="category-select") }}
+    </div>
+    <div>
+        {{ form.description.label }} {{ form.description() }}
+    </div>
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<script>
+    document.getElementById("type-select").addEventListener("change", function() {
+        const selectedType = this.value;
+        fetch(`/get_categories/${selectedType}`)
+            .then(response => response.json())
+            .then(data => {
+                const categorySelect = document.getElementById("category-select");
+                categorySelect.innerHTML = "";
+                for (const [id, name] of data) {
+                    const option = document.createElement("option");
+                    option.value = id;
+                    option.textContent = name;
+                    categorySelect.appendChild(option);
+                }
+            });
+    });
+
+    // триггерим вручную при загрузке, чтобы категории были выбраны по умолчанию
+    window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("type-select").dispatchEvent(new Event("change"));
+    });
+</script>
 {% endblock %}

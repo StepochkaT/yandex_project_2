@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import HiddenField, SubmitField, SelectField
-from wtforms.validators import DataRequired
+from wtforms.validators import DataRequired, Optional
 
 
 class PeriodForm(FlaskForm):
@@ -11,4 +11,5 @@ class PeriodForm(FlaskForm):
         default='all',
         validators=[DataRequired()]
     )
+    category = SelectField('Категория', choices=[('all', 'Все')], default='all', validators=[Optional()])
     submit = SubmitField("Подтвердить")

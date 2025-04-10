@@ -7,7 +7,7 @@ from wtforms.validators import DataRequired
 class OperationForm(FlaskForm):
     date = DateTimeField("Дата", default=datetime.datetime.now, format='%Y-%m-%d %H:%M:%S')
     amount = FloatField("Сумма", validators=[DataRequired()])
-    category = StringField("Категория", validators=[DataRequired()])
+    category = SelectField("Категория", coerce=int, validators=[DataRequired()])
     type = SelectField("Тип операции", choices=[("income", "Доход"), ("expense", "Расход")], validators=[DataRequired()])
     description = StringField("Описание")
     submit = SubmitField("Добавить операцию")

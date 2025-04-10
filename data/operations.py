@@ -12,7 +12,8 @@ class Operation(SqlAlchemyBase):
     user_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("users.id"))
     user = orm.relationship('User')
     amount = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
-    category = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    category_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey("category.id"))
+    category = orm.relationship("Category")
     type = sqlalchemy.Column(sqlalchemy.String, nullable=False)
     description = sqlalchemy.Column(sqlalchemy.String, nullable=True)
 
