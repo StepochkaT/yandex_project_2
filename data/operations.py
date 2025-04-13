@@ -18,4 +18,4 @@ class Operation(SqlAlchemyBase):
     description = sqlalchemy.Column(sqlalchemy.String, nullable=True)
 
     def __repr__(self):
-        return f'<Operation> {self.id} {self.user_id} {self.amount}'
+        return f'<Operation> {self.id} {self.user_id} {self.amount} {self.category_id}'

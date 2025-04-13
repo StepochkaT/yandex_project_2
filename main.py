@@ -3,6 +3,8 @@ import math
 
 from flask import Flask, render_template, redirect, request, abort, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+from flask_apscheduler import APScheduler
+from currency_updater import update_currency_data, load_data
 
 from data.category import Category
 from forms.cat_form import CategoryForm
@@ -17,6 +19,24 @@ app = Flask(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
 app.config['SECRET_KEY'] = 'super_secret_key'
+
+
+class Config:
+    SCHEDULER_API_ENABLED = True
+
+
+app.config.from_object(Config())
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
+
+scheduler.add_job(
+    id='update_currency_data',
+    func=update_currency_data,
+    trigger='interval',
+    hours=2
+)
 
 
 @login_manager.user_loader
@@ -144,12 +164,23 @@ def operations():
 
     user_operations = current_user.operations
     db_sess = db_session.create_session()
-    user_categories = {c.id: c.name for c in current_user.categories}
-    base_categories = {c.id: c.name for c in db_sess.query(Category).filter(Category.user_id == None)}
-    all_categories = {'all': 'Все'}
-    all_categories.update({**base_categories, **user_categories})
 
-    form.category.choices = [(str(k), v) for k, v in all_categories.items()]
+    user_categories = [{
+        'id': c.id,
+        'name': c.name,
+        'type': c.type
+    } for c in current_user.categories]
+
+    base_categories = [{
+        'id': c.id,
+        'name': c.name,
+        'type': c.type
+    } for c in db_sess.query(Category).filter(Category.user_id == None)]
+
+    all_categories = [{'id': 'all', 'name': 'Все', 'type': 'all'}]
+    all_categories.extend(base_categories + user_categories)
+
+    form.category.choices = [(str(c['id']), c['name']) for c in all_categories]
 
     if request.method == "POST":
         date_range_str = form.date_range.data
@@ -208,7 +239,6 @@ def operations():
         search_query=search_query,
         categories=all_categories
     )
-
 
 
 @app.route('/edit_operation/<int:id>', methods=['GET', 'POST'])
@@ -352,6 +382,38 @@ def delete_category(id):
     page = request.form.get("page", "1")
     search_query = request.form.get("search_query", "")
     return redirect(f"/categories?page={page}&search={search_query}")
+
+
+@app.route("/currency")
+def currency_page():
+    currencies = {"USD": 'Американский доллар', "EUR": 'Евро', "CNY": 'Китайский юань', "RUB": 'Российский рубль'}
+    return render_template("currency_test.html", currencies=currencies)
+
+
+@app.route("/currency/data", methods=["POST"])
+def currency_data():
+    data = load_data()
+    from_curr = request.json.get("from_currency")
+    to_curr = request.json.get("to_currency")
+    amount = float(request.json.get("amount", 1))
+
+    if from_curr not in data or to_curr not in data:
+        return jsonify({"error": "Некорректные данные"}), 400
+
+    common_times = sorted(set(data[from_curr]) & set(data[to_curr]))
+    times = [datetime.fromisoformat(t).isoformat() for t in common_times]
+    rates = [data[from_curr][t] / data[to_curr][t] for t in common_times]
+    converted = amount * rates[-1] if rates else 0
+
+    return jsonify({
+        "converted": round(converted, 4),
+        "graph": {
+            "x": times,
+            "y": rates,
+            "from": from_curr,
+            "to": to_curr
+        }
+    })
 
 
 if __name__ == '__main__':
