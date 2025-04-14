@@ -352,7 +352,8 @@ def categories():
         total_pages=total_pages,
         search_query=search_query,
         show_my=show_my,
-        form=form
+        form=form,
+        title='Категории'
     )
 
 
@@ -387,7 +388,37 @@ def delete_category(id):
 @app.route("/currency")
 def currency_page():
     currencies = {"USD": 'Американский доллар', "EUR": 'Евро', "CNY": 'Китайский юань', "RUB": 'Российский рубль'}
-    return render_template("currency_test.html", currencies=currencies)
+    return render_template("currency_test.html", currencies=currencies, title='Конвертер валют')
+
+
+@app.route("/calculators")
+def calculators_page():
+    return render_template("calculators.html", title='Калькуляторы')
+
+
+@app.route('/deposit')
+def deposit_page():
+    return render_template("deposit_calculator.html", title='Депозитный калькулятор')
+
+
+@app.route("/credit")
+def credit_page():
+    return render_template("credit_calculator.html", title='Кредитный калькулятор')
+
+
+@app.route('/savings', methods=['POST', 'GET'])
+def saving_cal_page():
+    if request.method == "GET":
+        return render_template("savings_calculator.html", title='Калькулятор сохранений')
+    elif request.method == 'POST':
+        if (not request.form['goal_cost'].isdigit()) or (not request.form['contribution'].isdigit()) or (
+                not request.form['gap'].isdigit()):
+            abort(401)
+        else:
+            quantity = int(request.form['goal_cost']) / (int(request.form['contribution']) * (int(request.form['gap'])))
+            result = (f'Вы соберёте на цель «{request.form["name_goal"]}» через'
+                      f' {int(quantity) * (int(request.form["gap"]))} дня.')
+            return render_template("savings_calculator.html", title='Калькулятор сохранений', result=result)
 
 
 @app.route("/currency/data", methods=["POST"])

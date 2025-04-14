@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <body>
+    <h2>Калькулятор личных накоплений</h2>
+    <div class="d-flex mb-3">
+    <form method="post">
+        <input type="text" name="name_goal" class="form-control me-2" placeholder="Название цели">
+        <input type="text" name="goal_cost" class="form-control me-2" placeholder="Стоимость цели">
+        <input type="text" name="contribution" class="form-control me-2" placeholder="Взнос">
+        <input type="text" name="gap" class="form-control me-2" placeholder="Промежуток между взносами">
+        <button type="submit" class="btn btn-primary">Рассчитать</button>
+    </form>
+    </div>
+    <h3>{{result}}</h3>
+    </body>
+{% endblock %}
