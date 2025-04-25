@@ -11,6 +11,7 @@ from forms.cat_form import CategoryForm
 from forms.period import PeriodForm
 from forms.user import RegisterForm, LoginForm
 from forms.operation import OperationForm
+from forms.deposit_calc import DepositCalculatorForm
 from data.users import User
 from data.operations import Operation
 from data import db_session
@@ -396,9 +397,21 @@ def calculators_page():
     return render_template("calculators.html", title='Калькуляторы')
 
 
-@app.route('/deposit')
-def deposit_page():
-    return render_template("deposit_calculator.html", title='Депозитный калькулятор')
+@app.route('/deposit', methods=['GET', 'POST'])
+@login_required
+def calculate_deposit():
+    form = DepositCalculatorForm()
+    if form.validate_on_submit():
+        print(request.form["amount"])
+        amount = request.form["amount"]
+        percent = request.form["percent"]
+        term = request.form["term"]
+        type_term = request.form["type_term"]
+        result = int(amount) * (1 + (int(percent) / 100)) ** int(term)
+        income = result - int(amount)
+        return render_template('deposit_calculator.html', form=form, income=income,
+                               amount_received=result, title="Депозитный калькулятор")
+    return render_template('deposit_calculator.html', form=form, title="Депозитный калькулятор")
 
 
 @app.route("/credit")
