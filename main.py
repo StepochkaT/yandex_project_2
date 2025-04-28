@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
 import math
 
 from flask import Flask, render_template, redirect, request, abort, jsonify
@@ -12,6 +13,7 @@ from forms.period import PeriodForm
 from forms.user import RegisterForm, LoginForm
 from forms.operation import OperationForm
 from forms.deposit_calc import DepositCalculatorForm
+from forms.credit_calc import CreditCalculatorForm
 from data.users import User
 from data.operations import Operation
 from data import db_session
@@ -402,21 +404,49 @@ def calculators_page():
 def calculate_deposit():
     form = DepositCalculatorForm()
     if form.validate_on_submit():
-        print(request.form["amount"])
+        list_of_charges = []
+        name = request.form["name"]
+        date_open = request.form["date"]
+        date = datetime(int(date_open[:4]), int(date_open[5:7]), int(date_open[8:]))
         amount = request.form["amount"]
         percent = request.form["percent"]
         term = request.form["term"]
         type_term = request.form["type_term"]
-        result = int(amount) * (1 + (int(percent) / 100)) ** int(term)
+        if type_term == 'year':
+            term = int(term) * 12
+        result = int(int(amount) * (1 + ((int(percent) / 100) / 12)) ** int(term))
         income = result - int(amount)
+        for _ in range(int(term)):
+            charge = round((int(amount) * (1 + ((int(percent) / 100) / 12)) ** 1) - int(amount), 2)
+            amount = (int(amount) * (1 + ((int(percent) / 100) / 12)) ** 1)
+            date = date + relativedelta(months=1)
+            list_of_charges.append([str(date)[:10], str(charge)])
         return render_template('deposit_calculator.html', form=form, income=income,
-                               amount_received=result, title="Депозитный калькулятор")
-    return render_template('deposit_calculator.html', form=form, title="Депозитный калькулятор")
+                               amount_received=result, title="Депозитный калькулятор", list_of_charges=list_of_charges)
+    return render_template('deposit_calculator.html', form=form, title="Депозитный калькулятор",
+                           income=0, amount_received=0)
 
 
-@app.route("/credit")
+@app.route("/credit", methods=['GET', 'POST'])
+@login_required
 def credit_page():
-    return render_template("credit_calculator.html", title='Кредитный калькулятор')
+    form = CreditCalculatorForm()
+    if form.validate_on_submit():
+        name = request.form["name"]
+        amount = request.form["amount"]
+        percent = request.form["percent"]
+        term = int(request.form["term"])
+        type_term = request.form["type_term"]
+        repayment = request.form["repayment"]
+        p = (1 / 12) * int(percent)
+        if type_term == "year":
+            term = int(term) * 12
+        monthly_payment = int(amount) * (p + (p / (((1 + p) ** term) - 1)))
+        income = monthly_payment * term - int(amount)
+        result = income + int(amount)
+        return render_template('credit_calculator.html', form=form, income=income,
+                               amount_received=result, title="Кредитный калькулятор")
+    return render_template('credit_calculator.html', form=form, title="Кредитный калькулятор")
 
 
 @app.route('/savings', methods=['POST', 'GET'])

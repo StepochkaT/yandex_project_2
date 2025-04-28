@@ -3,6 +3,9 @@
 <form method="post">
     {{ form.hidden_tag() }}
     <div>
+        {{ form.name.label }} {{ form.name() }}
+    </div>
+    <div>
         {{ form.date.label }} {{ form.date() }}
     </div>
     <div>
@@ -21,4 +24,22 @@
 
 <div><h3>Сумма в конце срока {{amount_received}}</h3></div>
 <div><h3>Доход {{income}}</h3></div>
+<table class="table table-striped mt-4">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Начислено процентов</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for i in list_of_charges %}
+            <tr>
+                <td>{{i[0]}}</td>
+                <td>{{i[1]}}</td>
+            </tr>
+
+        {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

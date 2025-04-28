@@ -1,7 +1,30 @@
 {% extends "base.html" %}
-
 {% block content %}
-    <body>
-    <h1>Здесь будет кредитный калькулятор калькулятор</h1>
-    </body>
+<form method="post">
+    {{ form.hidden_tag() }}
+    <div>
+        {{ form.name.label }} {{ form.name() }}
+    </div>
+    <div>
+        {{ form.date.label }} {{ form.date() }}
+    </div>
+    <div>
+        {{ form.amount.label }} {{ form.amount() }}
+    </div>
+    <div>
+        {{ form.percent.label }} {{ form.percent() }}
+    </div>
+    <div>
+        {{ form.term.label }} {{form.term()}} {{ form.type_term.label }} {{ form.type_term()}}
+    </div>
+    <div>
+        {{ form.repayment.label }} {{form.repayment()}}
+    </div>
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+
+<div><h3>Всего выплат {{amount_received}}</h3></div>
+<div><h3>Переплата {{income}}</h3></div>
 {% endblock %}
