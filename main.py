@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, date
 import math
 
@@ -5,8 +6,10 @@ from flask import Flask, render_template, redirect, request, abort, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_apscheduler import APScheduler
 from currency_updater import update_currency_data, load_data
+from data.budget import Budget
 
 from data.category import Category
+from forms.budget_form import BudgetForm
 from forms.cat_form import CategoryForm
 from forms.period import PeriodForm
 from forms.user import RegisterForm, LoginForm
@@ -14,6 +17,8 @@ from forms.operation import OperationForm
 from data.users import User
 from data.operations import Operation
 from data import db_session
+
+from collections import defaultdict
 
 app = Flask(__name__)
 login_manager = LoginManager()
@@ -37,6 +42,8 @@ scheduler.add_job(
     trigger='interval',
     hours=2
 )
+
+update_currency_data()
 
 
 @login_manager.user_loader
@@ -68,9 +75,32 @@ def index():
             current_user.operations
         ))
 
+        if now.month == 1:
+            prev_month = 12
+            prev_year = now.year - 1
+        else:
+            prev_month = now.month - 1
+            prev_year = now.year
+
+        operations_last_month = list(filter(
+            lambda op: op.date.month == prev_month and op.date.year == prev_year,
+            current_user.operations
+        ))
+
         income = sum(op.amount for op in operations_this_month if op.type == "income")
         expense = sum(op.amount for op in operations_this_month if op.type == "expense")
         balance = income - expense
+
+        income_last = sum(op.amount for op in operations_last_month if op.type == "income")
+        expense_last = sum(op.amount for op in operations_last_month if op.type == "expense")
+
+        def calc_change(current, previous):
+            if previous == 0:
+                return None
+            return round((current - previous) / previous * 100, 1)
+
+        income_change = calc_change(income, income_last)
+        expense_change = calc_change(expense, expense_last)
 
         return render_template(
             "dashboard.html",
@@ -78,6 +108,8 @@ def index():
             income=income,
             expense=expense,
             balance=balance,
+            income_change=income_change,
+            expense_change=expense_change,
             current_month=current_month
         )
     else:
@@ -133,12 +165,16 @@ def add_operation():
     form.category.choices = [(cat.id, cat.name) for cat in categories]
 
     if form.validate_on_submit():
+        description = form.description.data.strip()
+        if not description:
+            description = "Без описания"
+
         operation = Operation(
             date=form.date.data,
             amount=form.amount.data,
             category_id=form.category.data,
             type=form.type.data,
-            description=form.description.data,
+            description=description,
             user_id=current_user.id
         )
         db_sess.add(operation)
@@ -184,6 +220,9 @@ def operations():
 
     if request.method == "POST":
         date_range_str = form.date_range.data
+
+        print(date_range_str)
+
         selected_type = form.operation_type.data
         selected_category = form.category.data
         show_all = 'show_all' in request.form
@@ -192,12 +231,25 @@ def operations():
         if not show_all and date_range_str:
             try:
                 start_str, end_str = date_range_str.split(" to ")
-                start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
-                end_date = datetime.strptime(end_str, "%Y-%m-%d").date()
+                start_date = datetime.strptime(start_str.strip(), "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_str.strip(), "%Y-%m-%d").date()
             except ValueError:
                 return redirect("/operations")
     else:
         selected_category = request.args.get("selected_category", "all")
+        selected_type = request.args.get("selected_type", "all")
+        date_range_str = request.args.get("date_range")
+
+        print(date_range_str)
+
+        if date_range_str:
+            try:
+                start_str, end_str = date_range_str.split(" to ")
+                start_date = datetime.strptime(start_str.strip(), "%Y-%m-%d").date()
+                end_date = datetime.strptime(end_str.strip(), "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
         form.date_range.data = ' to '.join([f"{start_date}", f"{end_date}"])
         form.operation_type.data = selected_type
         form.category.data = selected_category
@@ -352,7 +404,8 @@ def categories():
         total_pages=total_pages,
         search_query=search_query,
         show_my=show_my,
-        form=form
+        form=form,
+        title='Категории'
     )
 
 
@@ -386,8 +439,9 @@ def delete_category(id):
 
 @app.route("/currency")
 def currency_page():
-    currencies = {"USD": 'Американский доллар', "EUR": 'Евро', "CNY": 'Китайский юань', "RUB": 'Российский рубль'}
-    return render_template("currency_test.html", currencies=currencies)
+    currencies = {"USD": 'Американский доллар', "EUR": 'Евро', "CNY": 'Китайский юань', "RUB": 'Российский рубль',
+                  'TRY': 'Турецкая лира', 'AED': 'Арабский дирхамм', 'BYN': 'Белорусский рубль'}
+    return render_template("currency_test.html", currencies=currencies, title='Конвертер валют')
 
 
 @app.route("/currency/data", methods=["POST"])
@@ -414,6 +468,134 @@ def currency_data():
             "to": to_curr
         }
     })
+
+
+@app.route("/statistics")
+@login_required
+def statistics():
+    date_range_str = request.args.get("date_range")
+    if date_range_str:
+        try:
+            start_str, end_str = date_range_str.split(" to ")
+            start_date = datetime.strptime(start_str.strip(), "%Y-%m-%d")
+            end_date = datetime.strptime(end_str.strip(), "%Y-%m-%d")
+        except ValueError:
+            start_date = date.today().replace(day=1)
+            end_date = date.today()
+    else:
+        start_date = date.today().replace(day=1)
+        end_date = date.today()
+
+    db_sess = db_session.create_session()
+
+    print(date_range_str)
+
+    all_categories = db_sess.query(Category).filter(
+        (Category.user_id == None) | (Category.user_id == current_user.id)
+    ).all()
+
+    category_to_id = {cat.name: cat.id for cat in all_categories}
+
+    expenses = db_sess.query(Operation).filter(
+        Operation.user_id == current_user.id,
+        Operation.type == "expense",
+        Operation.date >= start_date,
+        Operation.date <= end_date
+    ).all()
+
+    expense_by_category = {}
+    for op in expenses:
+        cat = next((c for c in all_categories if c.id == op.category_id), None)
+        if cat:
+            expense_by_category.setdefault(cat.name, 0)
+            expense_by_category[cat.name] += op.amount
+
+    incomes = db_sess.query(Operation).filter(
+        Operation.user_id == current_user.id,
+        Operation.type == "income",
+        Operation.date >= start_date,
+        Operation.date <= end_date
+    ).all()
+
+    expense_by_day = defaultdict(float)
+    income_by_day = defaultdict(float)
+
+    for op in expenses:
+        date_str = op.date.strftime("%Y-%m-%d")
+        expense_by_day[date_str] += op.amount
+
+    for op in incomes:
+        date_str = op.date.strftime("%Y-%m-%d")
+        income_by_day[date_str] += op.amount
+
+    all_days = sorted(set(expense_by_day.keys()) | set(income_by_day.keys()))
+
+    day_labels = all_days
+    day_expenses = [expense_by_day.get(day, 0) for day in all_days]
+    day_incomes = [income_by_day.get(day, 0) for day in all_days]
+
+    date_range = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
+
+    return render_template("statistics.html",
+                           labels=list(expense_by_category.keys()),
+                           values=list(expense_by_category.values()),
+                           date_range=date_range,
+                           category_to_id_map=category_to_id,
+                           day_labels=day_labels,
+                           day_expenses=day_expenses,
+                           day_incomes=day_incomes)
+
+
+@app.route('/budget', methods=['GET', 'POST'])
+@login_required
+def budget():
+    session = db_session.create_session()
+    form = BudgetForm()
+    current_year = datetime.now().year
+    current_month_num = datetime.now().month
+    current_month_name = datetime.now().strftime("%B")
+
+    existing_budgets = session.query(Budget).filter(
+        Budget.user_id == current_user.id,
+        Budget.year == current_year,
+        Budget.month == current_month_num
+    ).all()
+
+    if existing_budgets:
+        return render_template("budget_exists.html", budgets=existing_budgets)
+
+    categories = session.query(Category).filter(
+        ((Category.user_id == None) | (Category.user_id == current_user.id)) &
+        (Category.type == "expense")
+    ).all()
+
+    categories_data = [{"id": c.id, "name": c.name} for c in categories]
+
+    if request.method == "POST":
+        try:
+            for key in request.form:
+                if key.startswith("category_"):
+                    category_id = int(request.form.get(key))
+                    amount = request.form.get(f"amount_{key.split('_')[1]}")
+                    if amount:
+                        budget = Budget(
+                            user_id=current_user.id,
+                            category_id=category_id,
+                            year=current_year,
+                            month=current_month_num,
+                            planned_amount=float(amount)
+                        )
+                        session.add(budget)
+            session.commit()
+            return redirect("/budget")
+        except Exception as e:
+            session.rollback()
+            return f"Ошибка при сохранении: {e}", 500
+
+    return render_template("budget.html",
+                           form=form,
+                           categories=categories_data,
+                           current_month=current_month_name)
 
 
 if __name__ == '__main__':

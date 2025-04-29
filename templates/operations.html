@@ -26,7 +26,6 @@
     {{ form.submit(class="btn btn-success") }}
 </form>
 
-
 {% if operations %}
     {% set ns = namespace(income=0, expense=0) %}
     <table class="table table-striped mt-4">
@@ -70,10 +69,6 @@
         </tbody>
     </table>
 
-    <div class="mt-3 fs-5">
-       <strong>Сумма операций:</strong> <span class="text-success">{{ "%.2f"|format(ns.income) }}</span> | <span class="text-danger">{{ "%.2f"|format(ns.expense) }}</span><br>
-    </div>
-
     {% if total_pages > 1 %}
         <nav>
             <ul class="pagination">
@@ -85,6 +80,12 @@
             </ul>
         </nav>
     {% endif %}
+
+    <div class="mt-3 fs-5">
+       <strong>Сумма операций:</strong> <span class="text-success">{{ "%.2f"|format(ns.income) }}</span> | <span class="text-danger">{{ "%.2f"|format(ns.expense) }}</span><br>
+    </div>
+
+    <button class="btn btn-outline-success mb-3" id="exportCSV">Экспорт данных в CSV</button>
 {% endif %}
 {% endblock %}
 
@@ -140,4 +141,42 @@
     typeSelect.addEventListener("change", updateCategoryOptions);
     document.addEventListener("DOMContentLoaded", updateCategoryOptions);
 </script>
+
+<script>
+document.getElementById('exportCSV').addEventListener('click', function () {
+    const headers = ["Дата", "Название", "Сумма", "Категория", "Тип"];
+
+    const rows = [
+        {% for op in operations %}
+            [
+                "{{ op.date.strftime('%Y-%m-%d') }}",
+                `{{ op.description | replace('"', '""') }}`,
+                "{{ op.amount }}",
+                "{{ (categories | selectattr('id', 'equalto', op.category_id) | list | first).name if (categories | selectattr('id', 'equalto', op.category_id) | list | first) else 'Без категории' }}",
+                "{{ 'Доход' if op.type == 'income' else 'Расход' }}"
+            ],
+        {% endfor %}
+    ];
+
+    const csvRows = [];
+
+    rows.forEach(row => {
+        const escaped = row.map(field => `"${field.replaceAll('"', '""')}"`);
+        csvRows.push(escaped.join(';'));
+    });
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "operations_export.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+});
+</script>
+
 {% endblock %}

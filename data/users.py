@@ -17,7 +17,7 @@ class User(SqlAlchemyBase, UserMixin):
     created_date = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.datetime.now)
 
     operations = orm.relationship("Operation", back_populates='user')
-    categories = orm.relationship("Category", back_populates='user') #
+    categories = orm.relationship("Category", back_populates='user')
 
     def __repr__(self):
         return f'<User> {self.id} {self.username} {self.email} {self.operations}'

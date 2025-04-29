@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 DATA_FILE = "data/currency_data.json"
 API_URL = "https://www.cbr-xml-daily.ru/daily_json.js"
-CURRENCIES = ["USD", "EUR", "CNY"]
+CURRENCIES = ["USD", "EUR", "CNY", "TRY", "AED", 'BYN']
 
 
 def load_data():
