@@ -3,8 +3,12 @@
 {% block content %}
     <body>
     <h1>Калькуляторы</h1>
-    <a href="/deposit"><button>Депозитный</button></a>
-    <a href="/credit"><button>Кредитный</button></a>
-    <a href="/savings"><button>Личные накопления</button></a>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4"><a href="/deposit" class="btn btn-info btn-lg btn-block" role="button">Депозитный</a></div>
+            <div class="col-md-4" style="background-color: #99CCFF"><a href="/credit"><button class="p-5 bg-danger border-light text-light">Кредитный</button></a></div>
+            <div class="col-md-4" style="background-color: #00CC99"><a href="/savings"><button class="p-5 bg-success border-light text-light">Личные накопления</button></a></div>
+        </div>
+    </div>
     </body>
 {% endblock %}

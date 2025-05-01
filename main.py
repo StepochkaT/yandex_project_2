@@ -414,8 +414,8 @@ def calculate_deposit():
         type_term = request.form["type_term"]
         if type_term == 'year':
             term = int(term) * 12
-        result = int(int(amount) * (1 + ((int(percent) / 100) / 12)) ** int(term))
-        income = result - int(amount)
+        result = round(int(amount) * (1 + ((int(percent) / 100) / 12)) ** int(term), 2)
+        income = round(result - int(amount), 2)
         for _ in range(int(term)):
             charge = round((int(amount) * (1 + ((int(percent) / 100) / 12)) ** 1) - int(amount), 2)
             amount = (int(amount) * (1 + ((int(percent) / 100) / 12)) ** 1)

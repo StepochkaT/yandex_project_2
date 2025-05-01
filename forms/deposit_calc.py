@@ -5,9 +5,9 @@ from wtforms.validators import DataRequired
 
 
 class DepositCalculatorForm(FlaskForm):
-    name = StringField("Имя вклада", default="Вклад 1", validators=[DataRequired()])
+    name = StringField("Имя вклада", validators=[DataRequired()])
     date = DateTimeField("Дата открытия", default=datetime.datetime.now, format='%Y-%m-%d')
-    amount = FloatField("Сумма", default=0, validators=[DataRequired()])
+    amount = FloatField("Сумма", validators=[DataRequired()])
     term = IntegerField("Срок вклада", default=1, validators=[DataRequired()])
     type_term = SelectField("Тип вклада", choices=[("year", "Год"), ("month", "Месяц")],
                             validators=[DataRequired()])
