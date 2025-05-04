@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Обертка для центрирования -->
+<div style="display: flex; justify-content: center;">
+    <!-- Внутренний контейнер с фиксированной шириной -->
+    <div style="max-width: 800px; width: 100%; padding: 20px; box-sizing: border-box;">
+        <h2><span class="badge bg-secondary">КРУТОЙ</span> личный кабинет</h2>
+        <h4>Данные аккаунта:</h4>
+
+        <!-- Обертка для позиционирования слева -->
+        <div style="display: flex; align-items: flex-start; gap: 20px;">
+            <!-- Блок с фотографией и кнопкой -->
+            <div style="flex-direction: column; text-align: left;">
+                <!-- Текущая фотография -->
+                <img src="{{ url_for('static', filename='images/profile.jpg') }}" alt="Фотография" style="width:200px; height:auto; border-radius:10px;">
+
+                <!-- Форма для загрузки новой фотографии -->
+                <form action="{{ url_for('upload_photo') }}" method="post" enctype="multipart/form-data" style="margin-top: 10px;">
+                    <input type="file" name="photo" accept="image/*" required>
+                    <br><br>
+                    <button class="btn btn-outline-secondary" type="submit">Загрузить новую фотографию</button>
+                </form>
+            </div>
+
+            <!-- Блок с информацией о пользователе и формой редактирования -->
+            <div style="max-width: 500px;">
+                <!-- Форма редактирования данных -->
+                <form action="{{ url_for('profile') }}" method="post">
+                    <div class="mb-3">
+                        <label for="email" class="form-label"><strong>Почта:</strong></label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ current_user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="username" class="form-label"><strong>Имя пользователя:</strong></label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ current_user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="about" class="form-label"><strong>О себе:</strong></label>
+                        <textarea class="form-control" id="about" name="about" rows="4" required>{{ current_user.about }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

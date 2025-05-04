@@ -1,7 +1,8 @@
+import os
 from datetime import datetime, date
 import math
 
-from flask import Flask, render_template, redirect, request, abort, jsonify
+from flask import Flask, render_template, redirect, request, abort, jsonify, url_for, flash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_apscheduler import APScheduler
 from currency_updater import update_currency_data, load_data
@@ -14,11 +15,15 @@ from forms.operation import OperationForm
 from data.users import User
 from data.operations import Operation
 from data import db_session
+from PIL import Image
 
 app = Flask(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
 app.config['SECRET_KEY'] = 'super_secret_key'
+# Путь для сохранения фотографий
+UPLOAD_FOLDER = 'static/images'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
 class Config:
@@ -82,6 +87,52 @@ def index():
         )
     else:
         return render_template("dashboard.html", authenticated=False)
+
+
+@app.route("/profile")
+def profile():
+
+    user = {
+        'email': 'user@example.com',
+        'username': 'john_doe',
+        'about': 'Я люблю программировать!'
+    }
+    return render_template('profile.html', user=user)
+
+
+@app.route('/upload_photo', methods=['POST'])
+def upload_photo():
+    if 'photo' not in request.files:
+        flash("Файл не выбран")
+        return redirect(url_for('profile'))
+    file = request.files['photo']
+    if file.filename == '':
+        flash("Файл не выбран")
+        return redirect(url_for('profile'))
+    # Проверка расширения файла (только jpg)
+    if not file.filename.lower().endswith('.jpg'):
+        flash("Допустимый формат: JPG")
+        return redirect(url_for('profile'))
+    # Временное сохранение файла для проверки
+    temp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'temp.jpg')
+    file.save(temp_path)
+    # Проверка размера изображения
+    try:
+        with Image.open(temp_path) as img:
+            width, height = img.size
+            if width != 100 or height != 100:
+                os.remove(temp_path)
+                flash("Размер изображения должен быть 100x100 пикселей")
+                return redirect(url_for('profile'))
+    except Exception:
+        os.remove(temp_path)
+        flash("Ошибка при обработке изображения")
+        return redirect(url_for('profile'))
+    # Если все проверки прошли
+    final_path = os.path.join(app.config['UPLOAD_FOLDER'], 'profile.jpg')
+    os.replace(temp_path, final_path)
+    flash("Фотография успешно обновлена")
+    return redirect(url_for('profile'))
 
 
 @app.route('/register', methods=['GET', 'POST'])
