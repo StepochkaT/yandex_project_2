@@ -9,6 +9,17 @@
             <p class="lead">Зарегистрируйтесь или войдите в аккаунт</p>
         </div>
     {% else %}
+
+    {% if budget_missing %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+    <div>
+        <strong>Внимание:</strong> Вы ещё не установили бюджет на этот месяц.
+    </div>
+    <a href="{{ url_for('budget') }}" class="btn btn-sm btn-warning">Установить бюджет</a>
+</div>
+{% endif %}
+
+
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3>{{ current_month }}</h3>
         </div>

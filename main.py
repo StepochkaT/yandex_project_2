@@ -6,7 +6,6 @@ from flask import Flask, render_template, redirect, request, abort, jsonify
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_apscheduler import APScheduler
 from currency_updater import update_currency_data, load_data
-from data.budget import Budget
 
 from data.category import Category
 from forms.budget_form import BudgetForm
@@ -16,6 +15,7 @@ from forms.user import RegisterForm, LoginForm
 from forms.operation import OperationForm
 from data.users import User
 from data.operations import Operation
+from data.budget import Budget
 from data import db_session
 
 from collections import defaultdict
@@ -69,6 +69,12 @@ def index():
     if current_user.is_authenticated:
         now = datetime.now()
         current_month = now.strftime("%B %Y")
+        session = db_session.create_session()
+        budget_set = session.query(Budget).filter(
+            Budget.user_id == current_user.id,
+            Budget.year == now.year,
+            Budget.month == now.month
+        ).first()
 
         operations_this_month = list(filter(
             lambda op: op.date.month == now.month and op.date.year == now.year,
@@ -110,7 +116,8 @@ def index():
             balance=balance,
             income_change=income_change,
             expense_change=expense_change,
-            current_month=current_month
+            current_month=current_month,
+            budget_missing=(budget_set is None)
         )
     else:
         return render_template("dashboard.html", authenticated=False)
@@ -221,7 +228,6 @@ def operations():
     if request.method == "POST":
         date_range_str = form.date_range.data
 
-        print(date_range_str)
 
         selected_type = form.operation_type.data
         selected_category = form.category.data
@@ -240,7 +246,6 @@ def operations():
         selected_type = request.args.get("selected_type", "all")
         date_range_str = request.args.get("date_range")
 
-        print(date_range_str)
 
         if date_range_str:
             try:
@@ -488,13 +493,14 @@ def statistics():
 
     db_sess = db_session.create_session()
 
-    print(date_range_str)
 
     all_categories = db_sess.query(Category).filter(
         (Category.user_id == None) | (Category.user_id == current_user.id)
     ).all()
 
+
     category_to_id = {cat.name: cat.id for cat in all_categories}
+
 
     expenses = db_sess.query(Operation).filter(
         Operation.user_id == current_user.id,
@@ -502,6 +508,7 @@ def statistics():
         Operation.date >= start_date,
         Operation.date <= end_date
     ).all()
+
 
     expense_by_category = {}
     for op in expenses:
@@ -536,6 +543,28 @@ def statistics():
 
     date_range = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
 
+    now = datetime.now()
+
+    plans = db_sess.query(Budget).filter(
+        Budget.user_id == current_user.id,
+        Budget.month == now.month,
+        Budget.year == now.year
+    ).all()
+    plan_by_category_id = {plan.category_id: plan.planned_amount for plan in plans}
+
+    comparison_rows = []
+    for cat in all_categories:
+        if cat.id in plan_by_category_id:
+            fact = sum(op.amount for op in expenses if op.category_id == cat.id)
+            plan = plan_by_category_id[cat.id]
+            percent = (fact / plan) * 100 if plan else 0
+            comparison_rows.append({
+                "category": cat.name,
+                "fact": round(fact, 2),
+                "plan": round(plan, 2),
+                "percent": round(percent, 1)
+            })
+
     return render_template("statistics.html",
                            labels=list(expense_by_category.keys()),
                            values=list(expense_by_category.values()),
@@ -543,7 +572,8 @@ def statistics():
                            category_to_id_map=category_to_id,
                            day_labels=day_labels,
                            day_expenses=day_expenses,
-                           day_incomes=day_incomes)
+                           day_incomes=day_incomes,
+                           comparison_rows=comparison_rows)
 
 
 @app.route('/budget', methods=['GET', 'POST'])
@@ -562,7 +592,7 @@ def budget():
     ).all()
 
     if existing_budgets:
-        return render_template("budget_exists.html", budgets=existing_budgets)
+        return redirect("/")
 
     categories = session.query(Category).filter(
         ((Category.user_id == None) | (Category.user_id == current_user.id)) &
