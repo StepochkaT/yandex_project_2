@@ -1,17 +1,15 @@
 import datetime
 from flask_wtf import FlaskForm
-from wtforms import FloatField, DateTimeField, SelectField, SubmitField, IntegerField, StringField
-from wtforms.validators import DataRequired
+from wtforms import DateTimeField, SelectField, SubmitField, IntegerField, StringField
+from wtforms.validators import DataRequired, NumberRange
 
 
 class CreditCalculatorForm(FlaskForm):
-    name = StringField("Имя кредита", default='Калькулятор ещё не готов', validators=[DataRequired()])
-    date = DateTimeField("Дата выдачи", default=datetime.datetime.now, format='%Y-%m-%d %H:%M:%S')
-    amount = FloatField("Сумма кредита/займа", default=10000, validators=[DataRequired()])
-    percent = FloatField("Процентная ставка", default=5, validators=[DataRequired()])
-    term = IntegerField("Срок кредита/займа", default=3, validators=[DataRequired()])
-    type_term = SelectField("Тип вклада", choices=[("year", "Год"), ("month", "Месяц")],
+    name = StringField("Имя кредита", validators=[DataRequired()])
+    date = DateTimeField("Дата выдачи", default=datetime.datetime.now, format='%Y-%m-%d')
+    amount = IntegerField("Сумма кредита/займа", validators=[DataRequired(), NumberRange(min=1)])
+    percent = IntegerField("Процентная ставка", default=5, validators=[DataRequired(), NumberRange(min=1)])
+    term = IntegerField("Срок кредита", default=3, validators=[DataRequired(), NumberRange(min=1)])
+    type_term = SelectField('ㅤ', choices=[("year", "Год"), ("month", "Месяц")],
                             validators=[DataRequired()])
-    repayment = SelectField("Переодичность погашения",
-                            choices=[("monthly", "Ежемесячно"), ("annually", "Ежегодно")], validators=[DataRequired()])
     submit = SubmitField("Рассчитать")

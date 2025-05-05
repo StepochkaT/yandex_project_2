@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
+from calendar import monthrange, isleap
 import math
 
 from flask import Flask, render_template, redirect, request, abort, jsonify
@@ -14,6 +15,7 @@ from forms.user import RegisterForm, LoginForm
 from forms.operation import OperationForm
 from forms.deposit_calc import DepositCalculatorForm
 from forms.credit_calc import CreditCalculatorForm
+from forms.save_calc import SavingsCalculatorForm
 from data.users import User
 from data.operations import Operation
 from data import db_session
@@ -402,12 +404,17 @@ def calculators_page():
 @app.route('/deposit', methods=['GET', 'POST'])
 @login_required
 def calculate_deposit():
+    is_table = False
     form = DepositCalculatorForm()
     if form.validate_on_submit():
+        is_table = True
         list_of_charges = []
         name = request.form["name"]
         date_open = request.form["date"]
         date = datetime(int(date_open[:4]), int(date_open[5:7]), int(date_open[8:]))
+        is_end_day = False
+        if int(date.day) == int(monthrange(date.year, date.month)[1]):
+            is_end_day = True
         amount = request.form["amount"]
         percent = request.form["percent"]
         term = request.form["term"]
@@ -420,48 +427,109 @@ def calculate_deposit():
             charge = round((int(amount) * (1 + ((int(percent) / 100) / 12)) ** 1) - int(amount), 2)
             amount = (int(amount) * (1 + ((int(percent) / 100) / 12)) ** 1)
             date = date + relativedelta(months=1)
+            if int(monthrange(date.year, date.month)[1]) > int(date.day) and is_end_day:
+                date = datetime(date.year, date.month, int(monthrange(date.year, date.month)[1]))
             list_of_charges.append([str(date)[:10], str(charge)])
         return render_template('deposit_calculator.html', form=form, income=income,
-                               amount_received=result, title="Депозитный калькулятор", list_of_charges=list_of_charges)
+                               amount_received=result, title="Депозитный калькулятор", list_of_charges=list_of_charges,
+                               is_table=is_table, name_file=name)
     return render_template('deposit_calculator.html', form=form, title="Депозитный калькулятор",
-                           income=0, amount_received=0)
+                           is_table=is_table)
 
 
 @app.route("/credit", methods=['GET', 'POST'])
 @login_required
 def credit_page():
+    is_table = False
     form = CreditCalculatorForm()
     if form.validate_on_submit():
+        repayment_list = []
         name = request.form["name"]
-        amount = request.form["amount"]
-        percent = request.form["percent"]
+        amount = int(request.form["amount"])
+        credit_amount = amount
+        income = amount
+        percent = int(request.form["percent"])
         term = int(request.form["term"])
         type_term = request.form["type_term"]
-        repayment = request.form["repayment"]
-        p = (1 / 12) * int(percent)
+        date_open = request.form["date"]
+        date = datetime(int(date_open[:4]), int(date_open[5:7]), int(date_open[8:]))
+        is_end_day = False
+        if int(date.day) == int(monthrange(date.year, date.month)[1]):
+            is_end_day = True
+        p = (percent / 100) / 12
         if type_term == "year":
             term = int(term) * 12
-        monthly_payment = int(amount) * (p + (p / (((1 + p) ** term) - 1)))
-        income = monthly_payment * term - int(amount)
-        result = income + int(amount)
+        monthly_payment = amount * ((p * ((1 + p) ** term)) / (((1 + p) ** term) - 1))
+        for _ in range(term):
+            date = date + relativedelta(months=1)
+            if isleap(date.year):
+                days = 366
+            else:
+                days = 365
+            if int(monthrange(date.year, date.month)[1]) > int(date.day) and is_end_day:
+                date = datetime(date.year, date.month, int(monthrange(date.year, date.month)[1]))
+            repayment_of_interest = (credit_amount * ((percent / 100) / days)) * int(
+                monthrange(date.year, date.month)[1])
+            income += repayment_of_interest
+            credit_amount = credit_amount - (monthly_payment - repayment_of_interest)
+            repayment_list.append([str(date)[:10], round(monthly_payment, 2), round(repayment_of_interest, 2),
+                                   round(monthly_payment - repayment_of_interest, 2), round(credit_amount, 2)])
+        income = round(income, 2)
+        result = round(income - amount, 2)
+        is_table = True
         return render_template('credit_calculator.html', form=form, income=income,
-                               amount_received=result, title="Кредитный калькулятор")
-    return render_template('credit_calculator.html', form=form, title="Кредитный калькулятор")
+                               amount_received=result, title="Кредитный калькулятор", is_table=is_table,
+                               repayment_list=repayment_list, name_file=name)
+    return render_template('credit_calculator.html', form=form, title="Кредитный калькулятор",
+                           is_table=is_table)
 
 
 @app.route('/savings', methods=['POST', 'GET'])
 def saving_cal_page():
-    if request.method == "GET":
-        return render_template("savings_calculator.html", title='Калькулятор сохранений')
-    elif request.method == 'POST':
-        if (not request.form['goal_cost'].isdigit()) or (not request.form['contribution'].isdigit()) or (
-                not request.form['gap'].isdigit()):
-            abort(401)
-        else:
-            quantity = int(request.form['goal_cost']) / (int(request.form['contribution']) * (int(request.form['gap'])))
-            result = (f'Вы соберёте на цель «{request.form["name_goal"]}» через'
-                      f' {int(quantity) * (int(request.form["gap"]))} дня.')
-            return render_template("savings_calculator.html", title='Калькулятор сохранений', result=result)
+    form = SavingsCalculatorForm()
+    is_table = False
+    if form.validate_on_submit():
+        is_table = True
+        denominator = 1
+        list_of_savings = []
+        name_file = request.form["name"]
+        date_open = request.form["date"]
+        date = datetime(int(date_open[:4]), int(date_open[5:7]), int(date_open[8:]))
+        amount = int(request.form["amount"])
+        payment_type = request.form["payment_type"]
+        quantity = int(request.form["quantity"])
+        type_repayment = request.form["type_repayment"]
+        if type_repayment == "month":
+            if payment_type == "day":
+                denominator = 30 * quantity
+            elif payment_type == "week":
+                denominator = 4 * quantity
+            elif payment_type == "month":
+                denominator = quantity
+        elif type_repayment == "year":
+            if payment_type == "day":
+                denominator = 365 * quantity
+            elif payment_type == "week":
+                denominator = 48 * quantity
+            elif payment_type == "month":
+                denominator = 12 * quantity
+        result = round(amount / denominator, 2)
+        for _ in range(denominator):
+            if payment_type == "day":
+                date = date + relativedelta(days=1)
+                print(date)
+                list_of_savings.append([str(date)[:10], result])
+            elif payment_type == "week":
+                date = date + relativedelta(days=7)
+                list_of_savings.append([str(date)[:10], result])
+            elif payment_type == "month":
+                date = date + relativedelta(months=1)
+                list_of_savings.append([str(date)[:10], result])
+        return render_template("savings_calculator.html", form=form, title="Калькулятор сохранений",
+                               result=result, is_table=is_table, amount=amount, name_file=name_file,
+                               list_of_savings=list_of_savings)
+    return render_template("savings_calculator.html", form=form, title="Калькулятор сохранений",
+                           is_table=is_table)
 
 
 @app.route("/currency/data", methods=["POST"])

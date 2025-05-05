@@ -22,7 +22,7 @@
             <div class="container">
                 <div class="form-group col-md-6">
                     <h5>{{ form.amount.label() }}</h5>
-                     {{ form.amount(class="form-control", type="text", placeholder="Введите сумму вклада") }}
+                     {{ form.amount(class="form-control", type="number", placeholder="Введите сумму вклада") }}
                 </div>
             </div>
             <div class="container">
@@ -44,18 +44,33 @@
                 </div>
             </div>
             <div class="container">
-            <div class="form-group col-md-3">
-                {{ form.submit(class="btn btn-success form-control", type="submit")}}
-            </div>
+                <div class="form-group col-md-3">
+                    {{ form.submit(class="btn btn-success form-control", type="submit")}}
+                </div>
             </div>
         </div>
     </form>
-        </div>
-        <div class="col-md-4"><br><h3>Сумма в конце срока {{amount_received}}</h3>
-        <h3>Доход {{income}}</h3></div>
+            </div>
+            {% if is_table %}
+        <div class="col-md-4">
+            <br>
+            <div class="card text-white bg-info mb-3 shadow-sm h-20 position-relative">
+                        <div class="card-body">
+                            <h3>Сумма в конце срока</h3>
+                            <p class="card-text fs-4">{{amount_received}} ₽</p>
+                        </div>
+                    </div>
+            <div class="card text-white bg-success mb-3 shadow-sm h-20 position-relative">
+                        <div class="card-body">
+                            <h3>Доход</h3>
+                            <p class="card-text fs-4">{{income}} ₽</p>
+                        </div>
+                    </div>
+
     </div>
 </div>
-
+</div>
+<br>
 <table class="table table-hover table-condensed">
         <thead>
             <tr>
@@ -73,4 +88,39 @@
         {% endfor %}
         </tbody>
     </table>
+<button class="btn btn-success" id="exportCSV">Экспорт данных в CSV</button>
+
+<script>
+document.getElementById('exportCSV').addEventListener('click', function () {
+    const headers = ["Дата", "Начислено процентов, ₽"];
+    const rows = [
+        {% for i in repayment_list %}
+            [
+                "{{i[0]}}",
+                "{{i[1]}}"
+            ],
+        {% endfor %}
+    ];
+
+    const csvRows = [];
+
+    rows.forEach(row => {
+        const escaped = row.map(field => `"${field.replaceAll('"', '""')}"`);
+        csvRows.push(escaped.join(';'));
+    });
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "{{name_file}}.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+});
+</script>
+{% endif %}
 {% endblock %}
