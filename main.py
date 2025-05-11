@@ -5,6 +5,9 @@ import math
 from flask import Flask, render_template, redirect, request, abort, jsonify, url_for, flash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_apscheduler import APScheduler
+from sqlalchemy.testing import db
+from werkzeug.utils import secure_filename
+
 from currency_updater import update_currency_data, load_data
 
 from data.category import Category
@@ -91,7 +94,6 @@ def index():
 
 @app.route("/profile")
 def profile():
-
     user = {
         'email': 'user@example.com',
         'username': 'john_doe',
@@ -102,6 +104,7 @@ def profile():
 
 @app.route('/upload_photo', methods=['POST'])
 def upload_photo():
+    # Проверка наличия файла в запросе
     if 'photo' not in request.files:
         flash("Файл не выбран")
         return redirect(url_for('profile'))
@@ -109,28 +112,40 @@ def upload_photo():
     if file.filename == '':
         flash("Файл не выбран")
         return redirect(url_for('profile'))
-    # Проверка расширения файла (только jpg)
-    if not file.filename.lower().endswith('.jpg'):
-        flash("Допустимый формат: JPG")
+
+    # Разрешённые расширения изображений
+    allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'}
+    filename = file.filename.lower()
+
+    # Проверка расширения файла
+    if '.' in filename:
+        ext = filename.rsplit('.', 1)[1]
+        if ext not in allowed_extensions:
+            flash(f"Допустимые форматы: {', '.join(allowed_extensions)}")
+            return redirect(url_for('profile'))
+    else:
+        flash("Неправильный формат файла")
         return redirect(url_for('profile'))
-    # Временное сохранение файла для проверки
-    temp_path = os.path.join(app.config['UPLOAD_FOLDER'], 'temp.jpg')
+
+    # Путь для временного сохранения файла
+    temp_path = os.path.join('static', 'images' + '.' + ext)
     file.save(temp_path)
-    # Проверка размера изображения
+
     try:
+        # Открываем изображение и изменяем размер
         with Image.open(temp_path) as img:
-            width, height = img.size
-            if width != 100 or height != 100:
-                os.remove(temp_path)
-                flash("Размер изображения должен быть 100x100 пикселей")
-                return redirect(url_for('profile'))
-    except Exception:
+            img = img.resize((100, 100), Image.ANTIALIAS)
+            # Путь для сохранения финальной картинки
+            final_path = os.path.join('static', 'images' + ext)
+            img.save(final_path)
+    except Exception as e:
         os.remove(temp_path)
         flash("Ошибка при обработке изображения")
         return redirect(url_for('profile'))
-    # Если все проверки прошли
-    final_path = os.path.join(app.config['UPLOAD_FOLDER'], 'profile.jpg')
-    os.replace(temp_path, final_path)
+
+    # Удаляем временный файл
+    os.remove(temp_path)
+
     flash("Фотография успешно обновлена")
     return redirect(url_for('profile'))
 
