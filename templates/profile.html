@@ -13,12 +13,13 @@
             <!-- Блок с фото и кнопкой -->
             <div style="flex-direction: column; text-align: center; width: 200px;">
                 <!-- Текущее фото -->
-                <img id="profileImage" src="{{ url_for('static', filename='images/profile.jpg') }}" alt="Фотография"
+                <img id="profileImage" src="{{ user_photo_url }}" alt="Фотография"
                      style="width: 200px; height: 200px; border-radius:10px; object-fit: cover; border: 1px solid #ccc; margin-bottom: 10px;">
-
                 <!-- Кнопка для выбора файла -->
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                <button type="button" style="width: 100%;" onclick="document.getElementById('fileInput').click();">Выбрать фото</button>
+                <button type="button" style="width: 100%;" onclick="document.getElementById('fileInput').click();">
+                    Выбрать фото
+                </button>
             </div>
 
             <!-- Блок с формой редактирования данных -->
@@ -49,47 +50,47 @@
 
 <!-- Скрипт для выбора файла и отправки на сервер -->
 <script>
-  let selectedFile = null;
+    let selectedFile = null;
 
-  document.getElementById('fileInput').addEventListener('change', function(event) {
-    selectedFile = event.target.files[0];
-    if (selectedFile) {
-      // Предварительный просмотр
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('profileImage').src = e.target.result;
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      selectedFile = event.target.files[0];
+      if (selectedFile) {
+        // Предварительный просмотр
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('profileImage').src = e.target.result;
+        }
+        reader.readAsDataURL(selectedFile);
+
+        // Автоматическая загрузка файла
+        uploadPhoto();
       }
-      reader.readAsDataURL(selectedFile);
-
-      // Автоматическая загрузка файла
-      uploadPhoto();
-    }
-  });
-
-  function uploadPhoto() {
-    if (!selectedFile) {
-      alert('Пожалуйста, выберите файл перед загрузкой.');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('photo', selectedFile);
-
-    fetch('{{ url_for("upload_photo") }}', {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.url) {
-        document.getElementById('profileImage').src = data.url;
-      } else if (data.error) {
-        alert('Ошибка: ' + data.error);
-      }
-    })
-    .catch(error => {
-      alert('Ошибка при загрузке: ' + error);
     });
-  }
+
+    function uploadPhoto() {
+      if (!selectedFile) {
+        alert('Пожалуйста, выберите файл перед загрузкой.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('photo', selectedFile);
+
+      fetch('{{ url_for("upload_photo") }}', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.url) {
+          document.getElementById('profileImage').src = data.url;
+        } else if (data.error) {
+          alert('Ошибка: ' + data.error);
+        }
+      })
+      .catch(error => {
+        alert('Ошибка при загрузке: ' + error);
+      });
+    }
 </script>
 {% endblock %}

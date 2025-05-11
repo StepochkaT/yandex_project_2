@@ -1,11 +1,11 @@
 import os
 from datetime import datetime, date
 import math
+import shutil
 
 from flask import Flask, render_template, redirect, request, abort, jsonify, url_for, flash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_apscheduler import APScheduler
-from sqlalchemy.testing import db
 from werkzeug.utils import secure_filename
 
 from currency_updater import update_currency_data, load_data
@@ -104,50 +104,64 @@ def profile():
 
 @app.route('/upload_photo', methods=['POST'])
 def upload_photo():
-    # Проверка наличия файла в запросе
+    # Проверка наличия файла
     if 'photo' not in request.files:
-        flash("Файл не выбран")
-        return redirect(url_for('profile'))
+        return jsonify({'error': 'Файл не выбран'}), 400
+
     file = request.files['photo']
     if file.filename == '':
-        flash("Файл не выбран")
-        return redirect(url_for('profile'))
+        return jsonify({'error': 'Файл не выбран'}), 400
 
-    # Разрешённые расширения изображений
+    # Разрешённые расширения
     allowed_extensions = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'}
-    filename = file.filename.lower()
-
-    # Проверка расширения файла
+    filename = secure_filename(file.filename)
     if '.' in filename:
-        ext = filename.rsplit('.', 1)[1]
+        ext = filename.rsplit('.', 1)[1].lower()
         if ext not in allowed_extensions:
-            flash(f"Допустимые форматы: {', '.join(allowed_extensions)}")
-            return redirect(url_for('profile'))
+            return jsonify({'error': f'Допустимые форматы: {", ".join(allowed_extensions)}'}), 400
     else:
-        flash("Неправильный формат файла")
-        return redirect(url_for('profile'))
+        return jsonify({'error': 'Неправильный формат файла'}), 400
 
-    # Путь для временного сохранения файла
-    temp_path = os.path.join('static', 'images' + '.' + ext)
+    # Папка для сохранения
+    upload_folder = os.path.join(app.root_path, 'static', 'images')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    # Очистка папки перед загрузкой
+    for filename in os.listdir(upload_folder):
+        file_path = os.path.join(upload_folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f'Не удалось удалить {file_path}. Причина: {e}')
+
+    # Имя файла
+    save_filename = 'profile.' + ext
+    save_path = os.path.join(upload_folder, save_filename)
+
+    # Временный файл для обработки
+    temp_path = os.path.join(app.root_path, 'static', 'images', 'temp.' + ext)
+    os.makedirs(os.path.dirname(temp_path), exist_ok=True)
     file.save(temp_path)
 
     try:
-        # Открываем изображение и изменяем размер
+        # Обработка изображения
         with Image.open(temp_path) as img:
-            img = img.resize((100, 100), Image.ANTIALIAS)
-            # Путь для сохранения финальной картинки
-            final_path = os.path.join('static', 'images' + ext)
-            img.save(final_path)
+            img = img.resize((200, 200), Image.LANCZOS)
+            img.save(save_path)
     except Exception as e:
         os.remove(temp_path)
-        flash("Ошибка при обработке изображения")
-        return redirect(url_for('profile'))
+        return jsonify({'error': 'Ошибка при обработке изображения'}), 500
 
-    # Удаляем временный файл
+    # Удаление временного файла
     os.remove(temp_path)
 
-    flash("Фотография успешно обновлена")
-    return redirect(url_for('profile'))
+    # Формируем URL для фронтенда
+    file_url = url_for('static', filename='images/' + save_filename)
+
+    return jsonify({'url': file_url})
 
 
 @app.route('/register', methods=['GET', 'POST'])
