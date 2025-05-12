@@ -17,7 +17,7 @@
                      style="width: 200px; height: 200px; border-radius:10px; object-fit: cover; border: 1px solid #ccc; margin-bottom: 10px;">
                 <!-- Кнопка для выбора файла -->
                 <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                <button type="button" style="width: 100%;" onclick="document.getElementById('fileInput').click();">
+                <button class="btn btn-outline-primary" type="button" style="width: 100%;" onclick="document.getElementById('fileInput').click();">
                     Выбрать фото
                 </button>
             </div>
@@ -25,33 +25,45 @@
             <!-- Блок с формой редактирования данных -->
             <div style="flex: 1;">
                 <!-- Форма редактирования данных -->
-                <form action="{{ url_for('profile') }}" method="post">
-                    <div class="mb-3">
-                        <label for="email" class="form-label"><strong>Почта:</strong></label>
-                        <input type="email" class="form-control" id="email" name="email"
-                               value="{{ current_user.email }}" required>
+                <form method="post" role="form">
+                {{ form.hidden_tag() }}
+                <div class="container">
+                    <br>
+                    <div class="form-group col-md-8">
+                        <h5>{{ form.name.label() }}</h5>
+                        {{ form.name(class="form-control") }}
                     </div>
-                    <div class="mb-3">
-                        <label for="username" class="form-label"><strong>Имя пользователя:</strong></label>
-                        <input type="text" class="form-control" id="username" name="username"
-                               value="{{ current_user.username }}" required>
+                </div>
+                <div class="container">
+                    <div class="form-group col-md-8">
+                        <h5>{{ form.password.label }}</h5>
+                        {{ form.password(class="form-control") }}
                     </div>
-                    <div class="mb-3">
-                        <label for="about" class="form-label"><strong>О себе:</strong></label>
-                        <textarea class="form-control" id="about" name="about" rows="4" required>{{ current_user.about }}</textarea>
+                </div>
+
+                <div class="container">
+                    <div class="form-group col-md-3">
+                        {{ form.submit(class="btn btn-success form-control", type="submit")}}
                     </div>
-                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
-                    <a class="btn btn-outline-primary" href="/logout">Выйти из аккаунта</a>
-                </form>
+            </div>
+            </form>
+                <div class="container">
+                    <div class="form-group col-md-3">
+                        <a class="btn btn-outline-danger" href="/logout">Выйти из аккаунта</a>
+                    </div>
+                    <div class="form-group col-md-6">
+                        {{message}}
+                    </div>
+                </div>
             </div>
         </div>
+
     </div>
 </div>
 
 <!-- Скрипт для выбора файла и отправки на сервер -->
 <script>
     let selectedFile = null;
-
     document.getElementById('fileInput').addEventListener('change', function(event) {
       selectedFile = event.target.files[0];
       if (selectedFile) {

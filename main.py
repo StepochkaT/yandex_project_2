@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 from currency_updater import update_currency_data, load_data
 
 from data.category import Category
+from forms.profile import ProfileForm
 from forms.cat_form import CategoryForm
 from forms.period import PeriodForm
 from forms.user import RegisterForm, LoginForm
@@ -92,19 +93,39 @@ def index():
         return render_template("dashboard.html", authenticated=False)
 
 
-@app.route("/profile")
+@login_required
+@app.route("/profile", methods=['GET', 'POST'])
 def profile():
-    user = {
-        'email': 'user@example.com',
-        'username': 'john_doe',
-        'about': 'Я люблю программировать!'
-    }
-    return render_template('profile.html', user=user)
+    form = ProfileForm()
+    if request.method == "GET":
+        db_sess = db_session.create_session()
+        users = db_sess.query(User).filter(
+                                          User.id == current_user.id
+                                          ).first()
+        if users:
+            form.name.data = users.username
+            form.password.data = users.password_hash
+        else:
+            abort(404)
+    if form.validate_on_submit():
+        db_sess = db_session.create_session()
+        users = db_sess.query(User).filter(User.id == current_user.id
+                                          ).first()
+        if users:
+            users.username = form.name.data
+            users.set_password(form.password.data)
+            db_sess.commit()
+            return redirect('/')
+        else:
+            abort(404)
+    return render_template('profile.html',
+                           title='Редактирование профиля пользователя',
+                           form=form
+                           )
 
 
 @app.route('/upload_photo', methods=['POST'])
 def upload_photo():
-    # Проверка наличия файла
     if 'photo' not in request.files:
         return jsonify({'error': 'Файл не выбран'}), 400
 
