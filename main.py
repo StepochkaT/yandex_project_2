@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 from currency_updater import update_currency_data, load_data
 
 from data.category import Category
-from forms.profile import ProfileForm
+from forms.change_profile import ProfileForm
 from forms.cat_form import CategoryForm
 from forms.period import PeriodForm
 from forms.user import RegisterForm, LoginForm
@@ -94,14 +94,25 @@ def index():
 
 
 @login_required
-@app.route("/profile", methods=['GET', 'POST'])
+@app.route("/profile")
 def profile():
+    db_sess = db_session.create_session()
+    users = db_sess.query(User).filter(
+        User.id == current_user.id
+    ).first()
+    return render_template("profile.html", title="Профиль пользователя",
+                           email=users.email, username=users.username, date=str(users.created_date)[:10])
+
+
+@login_required
+@app.route("/change_profile", methods=['GET', 'POST'])
+def change_profile():
     form = ProfileForm()
     if request.method == "GET":
         db_sess = db_session.create_session()
         users = db_sess.query(User).filter(
-                                          User.id == current_user.id
-                                          ).first()
+            User.id == current_user.id
+        ).first()
         if users:
             form.name.data = users.username
             form.password.data = users.password_hash
@@ -110,7 +121,7 @@ def profile():
     if form.validate_on_submit():
         db_sess = db_session.create_session()
         users = db_sess.query(User).filter(User.id == current_user.id
-                                          ).first()
+                                           ).first()
         if users:
             users.username = form.name.data
             users.set_password(form.password.data)
@@ -118,7 +129,7 @@ def profile():
             return redirect('/')
         else:
             abort(404)
-    return render_template('profile.html',
+    return render_template('change_profile.html',
                            title='Редактирование профиля пользователя',
                            form=form
                            )

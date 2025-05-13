@@ -1,108 +1,39 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Обертка для центрирования -->
 <div style="display: flex; justify-content: center;">
     <!-- Внутренний контейнер с фиксированной шириной -->
     <div style="max-width: 1000px; width: 100%; padding: 20px; box-sizing: border-box;">
         <h2><span class="badge bg-secondary">КРУТОЙ</span> личный кабинет</h2>
         <h4>Данные аккаунта:</h4>
-
         <!-- Основной блок с фото и формой -->
         <div style="display: flex; gap: 30px; align-items: flex-start; margin-top: 20px;">
             <!-- Блок с фото и кнопкой -->
             <div style="flex-direction: column; text-align: center; width: 200px;">
                 <!-- Текущее фото -->
-                <img id="profileImage" src="{{ user_photo_url }}" alt="Фотография"
+                <img src="{{ user_photo_url }}" alt="Фотография"
                      style="width: 200px; height: 200px; border-radius:10px; object-fit: cover; border: 1px solid #ccc; margin-bottom: 10px;">
-                <!-- Кнопка для выбора файла -->
-                <input type="file" id="fileInput" accept="image/*" style="display: none;">
-                <button class="btn btn-outline-primary" type="button" style="width: 100%;" onclick="document.getElementById('fileInput').click();">
-                    Выбрать фото
-                </button>
             </div>
 
-            <!-- Блок с формой редактирования данных -->
             <div style="flex: 1;">
-                <!-- Форма редактирования данных -->
-                <form method="post" role="form">
-                {{ form.hidden_tag() }}
                 <div class="container">
-                    <br>
-                    <div class="form-group col-md-8">
-                        <h5>{{ form.name.label() }}</h5>
-                        {{ form.name(class="form-control") }}
+                    <div class="col-md-6">
+                        <h5>Почта: {{email}}</h5>
+                        <h5>Имя пользователя: {{username}}</h5>
+                        <h5>Дата регистрации: {{date}}</h5>
                     </div>
-                </div>
-                <div class="container">
-                    <div class="form-group col-md-8">
-                        <h5>{{ form.password.label }}</h5>
-                        {{ form.password(class="form-control") }}
-                    </div>
-                </div>
-
-                <div class="container">
-                    <div class="form-group col-md-3">
-                        {{ form.submit(class="btn btn-success form-control", type="submit")}}
-                    </div>
-            </div>
-            </form>
-                <div class="container">
-                    <div class="form-group col-md-3">
-                        <a class="btn btn-outline-danger" href="/logout">Выйти из аккаунта</a>
-                    </div>
-                    <div class="form-group col-md-6">
-                        {{message}}
+                    <div class="row">
+                            <div class="col-md-6">
+                                <a class="btn btn-outline-danger" href="/logout">Выйти из аккаунта</a>
+                            </div>
+                            <div class="col-md-6">
+                                <a class="btn btn-outline-info" href="/change_profile">Изменить данные</a>
+                            </div>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
 </div>
 
-<!-- Скрипт для выбора файла и отправки на сервер -->
-<script>
-    let selectedFile = null;
-    document.getElementById('fileInput').addEventListener('change', function(event) {
-      selectedFile = event.target.files[0];
-      if (selectedFile) {
-        // Предварительный просмотр
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          document.getElementById('profileImage').src = e.target.result;
-        }
-        reader.readAsDataURL(selectedFile);
-
-        // Автоматическая загрузка файла
-        uploadPhoto();
-      }
-    });
-
-    function uploadPhoto() {
-      if (!selectedFile) {
-        alert('Пожалуйста, выберите файл перед загрузкой.');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('photo', selectedFile);
-
-      fetch('{{ url_for("upload_photo") }}', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.url) {
-          document.getElementById('profileImage').src = data.url;
-        } else if (data.error) {
-          alert('Ошибка: ' + data.error);
-        }
-      })
-      .catch(error => {
-        alert('Ошибка при загрузке: ' + error);
-      });
-    }
-</script>
 {% endblock %}
