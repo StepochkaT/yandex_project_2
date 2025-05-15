@@ -114,6 +114,7 @@ def change_profile():
             User.id == current_user.id
         ).first()
         if users:
+            form.email.data = users.email
             form.name.data = users.username
             form.password.data = users.password_hash
         else:
@@ -123,6 +124,10 @@ def change_profile():
         users = db_sess.query(User).filter(User.id == current_user.id
                                            ).first()
         if users:
+            if db_sess.query(User).filter(User.email == form.email.data, User.id != current_user.id).first():
+                return render_template("change_profile.html", title="Редактирование профиля",
+                                       form=form, message="Пользователь с такой почтой уже существует")
+            users.email = form.email.data
             users.username = form.name.data
             users.set_password(form.password.data)
             db_sess.commit()

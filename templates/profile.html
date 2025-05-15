@@ -17,17 +17,20 @@
 
             <div style="flex: 1;">
                 <div class="container">
-                    <div class="col-md-6">
+                        <div class="center-block">
+
+                            <div class="col-md-9 card text-secondary border-secondary mb-3 shadow-sm h-20 position-relative">
                         <h5>Почта: {{email}}</h5>
                         <h5>Имя пользователя: {{username}}</h5>
                         <h5>Дата регистрации: {{date}}</h5>
                     </div>
+                    </div>
                     <div class="row">
                             <div class="col-md-6">
-                                <a class="btn btn-outline-danger" href="/logout">Выйти из аккаунта</a>
+                                <a class="btn btn-outline-info" href="/change_profile">Изменить данные</a>
                             </div>
                             <div class="col-md-6">
-                                <a class="btn btn-outline-info" href="/change_profile">Изменить данные</a>
+                                <a class="btn btn-outline-danger" href="/logout">Выйти из аккаунта</a>
                             </div>
                     </div>
                 </div>
